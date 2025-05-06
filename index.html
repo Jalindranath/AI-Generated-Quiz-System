@@ -123,12 +123,19 @@
     async function getQuestionsFromGemini(text, numQuestions) {
       const body = {
         contents: [{ parts: [{ text: `Analyze the entire provided text and generate ${numQuestions} multiple-choice questions (MCQs) in JSON format with 'question', 'options', and 'correct_index'. The questions should be:
-- At the MPSC (Maharashtra Public Service Commission) difficulty level, suitable for competitive exams.
+
+- Based on the MPSC (Maharashtra Public Service Commission) difficulty level, suitable for competitive exams.
 - Randomly selected from different sections of the text to ensure variety and avoid repetition across multiple runs.
 - In Marathi language for both questions and options.
-- Accurate, relevant, and based on a thorough understanding of the text content.
-- Each question should have 4 options, with the correct answer randomly placed among the options (not always the same position, e.g., not always option B).
-Ensure the JSON is well-formed and contains no additional text outside the array.\n${text}` }] }]
+- Prefer the following question formats:
+  - विधानार्थी प्रश्न (statement-based: e.g., खालीलपैकी योग्य विधान ओळखा)
+  - योग्य/अयोग्य (true/false-type options)
+  - दोन विधानांवर आधारित प्रश्न (Statement I/II type)
+  - कोणता पर्याय योग्य आहे? / चुकीचा आहे?
+- Ensure each question has exactly 4 options, with the correct answer randomly placed among them.
+- Ensure all questions are based on accurate and relevant information from the input text.
+- Output must be a well-formed JSON array with no additional text outside the array.
+Now process this input text:\n${text}` }] }]
       };
 
       const res = await axios.post(
