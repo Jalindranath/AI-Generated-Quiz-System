@@ -122,20 +122,23 @@
 
     async function getQuestionsFromGemini(text, numQuestions) {
       const body = {
-        contents: [{ parts: [{ text: `Analyze the entire provided text and generate ${numQuestions} multiple-choice questions (MCQs) in JSON format with 'question', 'options', and 'correct_index'. The questions should be:
+        contents: [{ parts: [{ text: `Analyze the entire provided text and generate ${numQuestions} multiple-choice questions (MCQs) in JSON format with 'question', 'options', and 'correct_index'. Follow these strict guidelines:
 
-- Based on the MPSC (Maharashtra Public Service Commission) difficulty level, suitable for competitive exams.
-- Randomly selected from different sections of the text to ensure variety and avoid repetition across multiple runs.
-- In Marathi language for both questions and options.
-- Prefer the following question formats:
-  - विधानार्थी प्रश्न (statement-based: e.g., खालीलपैकी योग्य विधान ओळखा)
-  - योग्य/अयोग्य (true/false-type options)
-  - दोन विधानांवर आधारित प्रश्न (Statement I/II type)
-  - कोणता पर्याय योग्य आहे? / चुकीचा आहे?
-- Ensure each question has exactly 4 options, with the correct answer randomly placed among them.
-- Ensure all questions are based on accurate and relevant information from the input text.
-- Output must be a well-formed JSON array with no additional text outside the array.
-Now process this input text:\n${text}` }] }]
+1. Questions must be at the **MPSC (Maharashtra Public Service Commission) level**, NOT primary or school-level.
+2. Emphasize **conceptual understanding, application, analysis, and inference** — not direct fact recall.
+3. Use these preferred question formats:
+   - विधानार्थी प्रश्न (statement-based)
+   - योग्य/अयोग्य (true/false-type options)
+   - दोन विधानांवर आधारित प्रश्न (Statement I आणि II)
+   - 'खालीलपैकी कोणते योग्य आहे/चुकीचे आहे?' प्रकार
+   - कारक, हेतू, परिणाम आधारित प्रश्न
+4. Avoid simplistic “what is this” or “who is this” type questions.
+5. Marathi must be used for all questions and options.
+6. Each question should have **4 well-thought-out options**, with the correct answer randomly positioned.
+7. Questions must be sampled from various parts of the text for diversity.
+8. Output only a valid JSON array with no extra commentary or explanation.
+
+Input Text:\n${text}` }] }]
       };
 
       const res = await axios.post(
