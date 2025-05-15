@@ -2,142 +2,121 @@
 <html lang="mr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AI PDF Quiz - Quiz</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .statement-block { margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-left: 4px solid #0d6efd; }
+    .match-list, .sequence-list { white-space: pre-line; font-family: monospace; background: #f1f1f1; padding: 8px; border-radius: 4px; }
+  </style>
 </head>
 <body class="bg-light">
-  <div class="container mt-5">
-    <div id="quizContainer"></div>
-  </div>
+<div class="container mt-5">
+  <div id="quizContainer"></div>
+</div>
 
-  <script>
-    let currentQuestion = 0, questions = [], score = 0, timers = [], startTime, timeTaken = [];
+<script>
+  let currentQuestion = 0, questions = [], score = 0, timers = [], startTime, timeTaken = [];
 
-    window.onload = () => {
-      const stored = localStorage.getItem("quizQuestions");
-      if (!stored) return window.location.href = "index.html";
-      questions = JSON.parse(stored);
-      showQuestion();
-    }
+  window.onload = () => {
+    const stored = localStorage.getItem("quizQuestions");
+    if (!stored) return window.location.href = "index.html";
+    questions = JSON.parse(stored);
+    showQuestion();
+  };
 
-   function showQuestion() {
-  if (currentQuestion >= questions.length) {
-    localStorage.setItem("quizScore", score);
-    localStorage.setItem("timeTaken", JSON.stringify(timeTaken));
-    window.location.href = "result.html";
-    return;
+  function detectQuestionType(text) {
+    const q = text.trim();
+    if (q.includes("विधान I") || q.includes("विधान I:") || q.includes("खालील विधान")) return "statement";
+    if (q.includes("जोड्या लावा") || q.includes("स्तंभ")) return "match";
+    if (q.includes("क्रम") || q.includes("योग्य क्रम")) return "sequence";
+    return "default";
   }
 
-  const q = questions[currentQuestion];
-  const container = document.getElementById("quizContainer");
-  let questionHTML = "";
-
-  // Intelligent formatting based on question type
-  if (/विधान\s?I/.test(q.question)) {
-    // Format statement questions (I, II...)
-    const parts = q.question.split(/\n/).filter(Boolean);
-    questionHTML += `<p class="fw-bold">${parts[0]}</p>`;
-    for (let i = 1; i < parts.length; i++) {
-      questionHTML += `<p class="ms-3">📌 ${parts[i]}</p>`;
+  function formatQuestionText(text, type) {
+    switch (type) {
+      case "statement":
+        return text.split(/\n+/).map(line => `<div class="statement-block">${line}</div>`).join('');
+      case "match":
+      case "sequence":
+        return `<div class="${type}-list">${text}</div>`;
+      default:
+        return `<p>${text}</p>`;
     }
-  } else if (q.question.includes("जोड्या लावा") || q.question.includes("स्तंभ A")) {
-    // Matching question formatting
-    questionHTML += `<p class="fw-bold mb-2">${q.question.split('\n')[0]}</p>`;
-    const rows = q.question.split('\n').slice(1);
-    questionHTML += '<div class="row"><div class="col-md-6"><strong>स्तंभ A</strong><ul>';
-    rows.forEach(line => {
-      if (line.includes('(a)') || line.includes('(b)') || line.includes('(c)')) {
-        questionHTML += `<li>${line.split('(')[1].split(')')[0]}. ${line.split(')')[1].split('(')[0]}</li>`;
-      }
-    });
-    questionHTML += '</ul></div><div class="col-md-6"><strong>स्तंभ B</strong><ul>';
-    rows.forEach(line => {
-      if (line.includes('(i)') || line.includes('(ii)') || line.includes('(iii)')) {
-        const parts = line.match(/\(.\)\s?(.*)/g);
-        if (parts) {
-          parts.forEach(p => {
-            const label = p.match(/\((.*?)\)/)[1];
-            const value = p.split(')')[1].trim();
-            questionHTML += `<li>${label}. ${value}</li>`;
-          });
-        }
-      }
-    });
-    questionHTML += '</ul></div></div>';
-  } else if (q.question.includes("योग्य क्रम") || q.question.includes("क्रम लावा")) {
-    // Sequence/order type question
-    const lines = q.question.split('\n');
-    questionHTML += `<p class="fw-bold">${lines[0]}</p>`;
-    lines.slice(1).forEach(line => {
-      questionHTML += `<p class="ms-3">🔢 ${line}</p>`;
-    });
-  } else {
-    // Default plain question
-    questionHTML += `<p>${q.question}</p>`;
   }
 
-  // Render options
-  questionHTML += q.options.map((opt, i) => `
-    <div class="form-check mb-2">
-      <input class="form-check-input" type="radio" name="q${currentQuestion}" value="${i}" id="opt${i}">
-      <label class="form-check-label" for="opt${i}">${opt}</label>
-    </div>`).join('');
+  function showQuestion() {
+    if (currentQuestion >= questions.length) {
+      localStorage.setItem("quizScore", score);
+      localStorage.setItem("timeTaken", JSON.stringify(timeTaken));
+      window.location.href = "result.html";
+      return;
+    }
 
-  container.innerHTML = `
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="d-flex justify-content-between mb-3">
-          <h5 class="card-title">प्रश्न ${currentQuestion + 1}:</h5>
-          <div class="text-danger fw-bold" id="timer">⏳ 0s</div>
+    const q = questions[currentQuestion];
+    const qType = detectQuestionType(q.question);
+    const container = document.getElementById("quizContainer");
+
+    container.innerHTML = `
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-3">
+            <h5 class="card-title">प्रश्न ${currentQuestion + 1}:</h5>
+            <div class="text-danger fw-bold" id="timer">⏳ 0s</div>
+          </div>
+          ${formatQuestionText(q.question, qType)}
+          ${q.options.map((opt, i) => `
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="q${currentQuestion}" value="${i}" id="opt${i}">
+              <label class="form-check-label" for="opt${i}">${opt}</label>
+            </div>
+          `).join('')}
+          <button class="btn btn-success mt-3" onclick="submitAnswer()">उत्तर सबमिट करा</button>
         </div>
-        ${questionHTML}
-        <button class="btn btn-success mt-3" onclick="submitAnswer()">Submit</button>
-      </div>
-    </div>`;
+      </div>`;
+    
+    startTime = new Date();
+    runTimer();
+  }
 
-  startTime = new Date();
-  runTimer();
-}
+  function runTimer() {
+    let sec = 0;
+    const timerElem = document.getElementById("timer");
+    const interval = setInterval(() => {
+      sec++;
+      timerElem.innerText = `⏳ ${sec}s`;
+    }, 1000);
+    timers.push(interval);
+  }
 
+  function stopTimer() {
+    timers.forEach(t => clearInterval(t));
+    timers = [];
+    const endTime = new Date();
+    timeTaken.push(Math.round((endTime - startTime) / 1000));
+  }
 
-    function runTimer() {
-      let sec = 0;
-      const timerElem = document.getElementById("timer");
-      const interval = setInterval(() => {
-        sec++;
-        timerElem.innerText = `⏳ ${sec}s`;
-      }, 1000);
-      timers.push(interval);
+  function submitAnswer() {
+    const selected = document.querySelector(`input[name='q${currentQuestion}']:checked`);
+    if (!selected) return alert("कृपया एक पर्याय निवडा");
+
+    stopTimer();
+    const answer = parseInt(selected.value);
+    const correct = questions[currentQuestion].correct_index;
+
+    if (answer === correct) {
+      score++;
+      selected.parentElement.classList.add("bg-success", "text-white", "p-2", "rounded");
+    } else {
+      selected.parentElement.classList.add("bg-danger", "text-white", "p-2", "rounded");
+      document.querySelector(`input[value='${correct}']`).parentElement.classList.add("bg-success", "text-white", "p-2", "rounded");
     }
 
-    function stopTimer() {
-      timers.forEach(t => clearInterval(t));
-      timers = [];
-      const endTime = new Date();
-      timeTaken.push(Math.round((endTime - startTime) / 1000));
-    }
-
-    function submitAnswer() {
-      const selected = document.querySelector(`input[name='q${currentQuestion}']:checked`);
-      if (!selected) return alert("कृपया एक पर्याय निवडा");
-
-      stopTimer();
-      const answer = parseInt(selected.value);
-      const correct = questions[currentQuestion].correct_index;
-      if (answer === correct) {
-        score++;
-        selected.parentElement.classList.add("bg-success", "text-white", "p-2", "rounded");
-      } else {
-        selected.parentElement.classList.add("bg-danger", "text-white", "p-2", "rounded");
-        document.querySelector(`input[value='${correct}']`).parentElement.classList.add("bg-success", "text-white", "p-2", "rounded");
-      }
-
-      setTimeout(() => {
-        currentQuestion++;
-        showQuestion();
-      }, 1500);
-    }
-  </script>
+    setTimeout(() => {
+      currentQuestion++;
+      showQuestion();
+    }, 1500);
+  }
+</script>
 </body>
 </html>
