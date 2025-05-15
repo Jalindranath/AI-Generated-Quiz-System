@@ -171,7 +171,7 @@ ${text}
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
       body
     );
-
+    console.log(res.data.candidates[0].content.parts[0].text);
     return res.data.candidates[0].content.parts[0].text;
   }
 </script>
