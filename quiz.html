@@ -21,73 +21,85 @@
       showQuestion();
     }
 
-    function showQuestion() {
-      if (currentQuestion >= questions.length) {
-        localStorage.setItem("quizScore", score);
-        localStorage.setItem("timeTaken", JSON.stringify(timeTaken));
-        window.location.href = "result.html";
-        return;
-      }
+   function showQuestion() {
+  if (currentQuestion >= questions.length) {
+    localStorage.setItem("quizScore", score);
+    localStorage.setItem("timeTaken", JSON.stringify(timeTaken));
+    window.location.href = "result.html";
+    return;
+  }
 
-      const q = questions[currentQuestion];
-      const container = document.getElementById("quizContainer");
-      let questionHTML = "";
+  const q = questions[currentQuestion];
+  const container = document.getElementById("quizContainer");
+  let questionHTML = "";
 
-      switch (q.type) {
-        case "vidhan":
-          questionHTML += `<p class="fw-bold">${q.question}</p>`;
-          questionHTML += q.options.slice(0, 2).map(v => `<p>📝 ${v}</p>`).join('');
-          questionHTML += "<p class='fw-bold mt-2'>योग्य पर्याय निवडा:</p>";
-          break;
-
-        case "jod":
-          questionHTML += `<p class="fw-bold">जोड्या लावा:</p>`;
-          questionHTML += `<p>${q.question}</p>`;
-          break;
-
-        case "satya":
-          questionHTML += `<p class="fw-bold">खालील विधान सत्य आहे का?</p>`;
-          questionHTML += `<p>${q.question}</p>`;
-          break;
-
-        case "karan-parinam":
-          questionHTML += `<p class="fw-bold">खालील कारण आणि परिणाम पाहा:</p>`;
-          questionHTML += `<p>${q.question}</p>`;
-          break;
-
-        case "sequence":
-          questionHTML += `<p class="fw-bold">योग्य क्रम लावा:</p>`;
-          questionHTML += `<p>${q.question}</p>`;
-          break;
-
-        case "normal":
-        default:
-          questionHTML += `<p>${q.question}</p>`;
-          break;
-      }
-
-      // Render options
-      questionHTML += q.options.map((opt, i) => `
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="radio" name="q${currentQuestion}" value="${i}" id="opt${i}">
-          <label class="form-check-label" for="opt${i}">${opt}</label>
-        </div>`).join('');
-
-      container.innerHTML = `
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <div class="d-flex justify-content-between mb-3">
-              <h5 class="card-title">प्रश्न ${currentQuestion + 1}:</h5>
-              <div class="text-danger fw-bold" id="timer">⏳ 0s</div>
-            </div>
-            ${questionHTML}
-            <button class="btn btn-success mt-3" onclick="submitAnswer()">Submit</button>
-          </div>
-        </div>`;
-
-      startTime = new Date();
-      runTimer();
+  // Intelligent formatting based on question type
+  if (/विधान\s?I/.test(q.question)) {
+    // Format statement questions (I, II...)
+    const parts = q.question.split(/\n/).filter(Boolean);
+    questionHTML += `<p class="fw-bold">${parts[0]}</p>`;
+    for (let i = 1; i < parts.length; i++) {
+      questionHTML += `<p class="ms-3">📌 ${parts[i]}</p>`;
     }
+  } else if (q.question.includes("जोड्या लावा") || q.question.includes("स्तंभ A")) {
+    // Matching question formatting
+    questionHTML += `<p class="fw-bold mb-2">${q.question.split('\n')[0]}</p>`;
+    const rows = q.question.split('\n').slice(1);
+    questionHTML += '<div class="row"><div class="col-md-6"><strong>स्तंभ A</strong><ul>';
+    rows.forEach(line => {
+      if (line.includes('(a)') || line.includes('(b)') || line.includes('(c)')) {
+        questionHTML += `<li>${line.split('(')[1].split(')')[0]}. ${line.split(')')[1].split('(')[0]}</li>`;
+      }
+    });
+    questionHTML += '</ul></div><div class="col-md-6"><strong>स्तंभ B</strong><ul>';
+    rows.forEach(line => {
+      if (line.includes('(i)') || line.includes('(ii)') || line.includes('(iii)')) {
+        const parts = line.match(/\(.\)\s?(.*)/g);
+        if (parts) {
+          parts.forEach(p => {
+            const label = p.match(/\((.*?)\)/)[1];
+            const value = p.split(')')[1].trim();
+            questionHTML += `<li>${label}. ${value}</li>`;
+          });
+        }
+      }
+    });
+    questionHTML += '</ul></div></div>';
+  } else if (q.question.includes("योग्य क्रम") || q.question.includes("क्रम लावा")) {
+    // Sequence/order type question
+    const lines = q.question.split('\n');
+    questionHTML += `<p class="fw-bold">${lines[0]}</p>`;
+    lines.slice(1).forEach(line => {
+      questionHTML += `<p class="ms-3">🔢 ${line}</p>`;
+    });
+  } else {
+    // Default plain question
+    questionHTML += `<p>${q.question}</p>`;
+  }
+
+  // Render options
+  questionHTML += q.options.map((opt, i) => `
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="radio" name="q${currentQuestion}" value="${i}" id="opt${i}">
+      <label class="form-check-label" for="opt${i}">${opt}</label>
+    </div>`).join('');
+
+  container.innerHTML = `
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+          <h5 class="card-title">प्रश्न ${currentQuestion + 1}:</h5>
+          <div class="text-danger fw-bold" id="timer">⏳ 0s</div>
+        </div>
+        ${questionHTML}
+        <button class="btn btn-success mt-3" onclick="submitAnswer()">Submit</button>
+      </div>
+    </div>`;
+
+  startTime = new Date();
+  runTimer();
+}
+
 
     function runTimer() {
       let sec = 0;
