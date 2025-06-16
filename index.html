@@ -48,8 +48,22 @@
     .btn-primary:active, .btn-primary:focus {
       background: #0a58ca !important;
     }
+    .json-preview {
+      background: #f8f9fa;
+      border: 1.5px solid #c6d3e6;
+      border-radius: 7px;
+      padding: 14px 15px;
+      font-size: 0.98rem;
+      margin-bottom: 18px;
+      margin-top: 6px;
+      color: #233550;
+      font-family: 'Fira Mono', 'Menlo', 'Consolas', monospace;
+      white-space: pre;
+      overflow-x: auto;
+    }
     @media (max-width: 600px) {
       .quiz-upload-card { margin: 12px; }
+      .json-preview { font-size: 0.93rem; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -84,6 +98,27 @@
           <input type="file" id="pdfInput" class="form-control" accept="application/pdf">
         </div>
         <div id="jsonInputGroup" class="mb-3 d-none">
+          <label class="form-label mb-1">JSON File Format (Preview):</label>
+          <div class="json-preview" id="jsonFormatPreview">
+[
+  {
+    "question": "समशीतोष्ण प्रदेशात बर्फाचे थर जमल्यावर काय तयार होते?",
+    "option_1": "धुके",
+    "option_2": "दव",
+    "option_3": "बर्फाचा कडा (ग्लेशियर)",
+    "option_4": "उष्णतेची लाट",
+    "answer": 3
+  },
+  {
+    "question": "पर्यटनाच्या निमित्ताने कोणता अप्रत्यक्ष फायदा होतो?",
+    "option_1": "शेतीतील उत्पादन",
+    "option_2": "पायाभूत सुविधा विकास",
+    "option_3": "प्रदूषण",
+    "option_4": "जंगलतोड",
+    "answer": 2
+  }
+]
+          </div>
           <label for="jsonInput" class="form-label">Select JSON File</label>
           <input type="file" id="jsonInput" class="form-control" accept="application/json">
         </div>
@@ -98,6 +133,9 @@
   <script>
     // --- Retain your API key (move to env in production) ---
     const API_KEY = 'AIzaSyC2wMg_eU32g_FZQCEoHDm0wkMh7Dze63w';
+
+    // PDF.js workerSrc warning fix
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
 
     document.querySelectorAll('input[name="inputType"]').forEach(radio => {
       radio.addEventListener('change', () => {
@@ -224,7 +262,6 @@ ${text}
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
         body
       );
-      // console.log(res.data.candidates[0].content.parts[0].text);
       return res.data.candidates[0].content.parts[0].text;
     }
   </script>

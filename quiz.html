@@ -22,9 +22,12 @@
       cursor: pointer;
       transition: background .15s;
       border-radius: 7px;
-      padding: 7px 15px;
+      padding: 10px 15px;
       display: block;
       border: 1px solid transparent;
+      margin-bottom: 10px;
+      font-size: 1.08em;
+      line-height: 1.6;
     }
     .option-label.selected { border: 1.5px solid #0d6efd; background: #e7f1ff; }
     .option-label.correct { background: #d0ffd6; border-color: #1bc467; }
@@ -38,6 +41,12 @@
       from { opacity: 0; transform: translateY(12px);}
       to { opacity: 1; transform: none;}
     }
+    .statement-list { margin: 10px 0 16px 0; padding-left: 0; }
+    .statement-list li { margin-bottom: 3px; list-style: none; }
+    .match-table { width: 100%; margin-top: 14px; }
+    .match-table th, .match-table td { padding: 6px 10px; }
+    .match-table th { background: #f5fafd; }
+    .match-table td { background: #fafdff; }
   </style>
 </head>
 <body>
@@ -59,6 +68,40 @@
     </div>
   </div>
 <script>
+function needsBlockOptions(text) {
+  const patterns = [
+    /विधान\s*I/i,
+    /सत्य[\/\\]असत्य/i,
+    /जोड्या\s*लावा/i,
+    /match\s*the\s*following/i,
+    /क्रम\s*लावा/i,
+    /योग्य\s*अयोग्य/i,
+    /column\s*A/i
+  ];
+  return patterns.some(pat => pat.test(text));
+}
+
+function isMatchType(text) {
+  return /जोड्या\s*लावा|match\s*the\s*following|column\s*A/i.test(text);
+}
+
+// Detects if question contains sub-statements like (a), (b), (c), (d)
+function extractStatements(question) {
+  // Find lines like (a) ... (b) ... (c) ... (d) ...
+  // or variants with full-width parens
+  const pattern = /(\([a-d]\))\s*([^()]+)/gmi;
+  let matches, arr = [];
+  while ((matches = pattern.exec(question)) !== null) {
+    arr.push(matches[1] + ' ' + matches[2].trim());
+  }
+  if (arr.length > 0) {
+    // Remove statements part from question stem
+    let qstem = question.split(/(\([a-d]\))/)[0].trim();
+    return {qstem, arr};
+  }
+  return null;
+}
+
 let questions = [],
     current = 0,
     score = 0,
@@ -99,12 +142,49 @@ function showQuestion() {
   }, 1000);
 
   const q = questions[current];
-  let html = `<div class="mb-3"><span class="fw-bold">${q.question}</span></div>`;
-  html += q.options.map((opt, i) =>
-    `<label class="option-label mt-2" id="optlbl${i}">
-      <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt}
-    </label>`
-  ).join('');
+  let html = "";
+
+  // Statement question rendering
+  const statementsData = extractStatements(q.question);
+  if (statementsData) {
+    html += `<div class="mb-1"><span class="fw-bold">${statementsData.qstem}</span></div>`;
+    html += `<ul class="statement-list">` + statementsData.arr.map(s => `<li>${s}</li>`).join('') + `</ul>`;
+  } else {
+    html += `<div class="mb-3"><span class="fw-bold">${q.question}</span></div>`;
+  }
+
+  // Special rendering for "match the following"
+  if (isMatchType(q.question) && q.options.every(opt => opt.includes(' - ') || opt.includes('–'))) {
+    html += `<table class="match-table mb-3"><tbody>`;
+    q.options.forEach((opt, i) => {
+      let [left, right] = opt.split(/ - |–/);
+      html += `<tr>
+        <td><label class="option-label" id="optlbl${i}">
+          <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">
+          <strong>${left.trim()}</strong>
+        </label></td>
+        <td>${right ? right.trim() : ''}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  // Block options (विधान, सत्य/असत्य, etc.), one per line
+  else if (needsBlockOptions(q.question) || statementsData) {
+    html += q.options.map((opt, i) =>
+      `<label class="option-label" id="optlbl${i}">
+        <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt}
+      </label>`
+    ).join('');
+  }
+  // Standard MCQ
+  else {
+    html += q.options.map((opt, i) =>
+      `<label class="option-label mt-2" id="optlbl${i}">
+        <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt}
+      </label>`
+    ).join('');
+  }
+
   html += `<div class="mt-4" id="actionBtn">
     <button class="btn btn-success next-btn" onclick="submitAnswer()">सबमिट करा</button>
   </div>`;
@@ -125,6 +205,7 @@ function submitAnswer() {
   // Mark options
   for (let i = 0; i < 4; ++i) {
     const label = document.getElementById('optlbl' + i);
+    if (!label) continue;
     label.classList.add('disabled');
     if (i === correctAns) label.classList.add('correct');
     if (i === userAns && userAns !== correctAns) label.classList.add('incorrect');
