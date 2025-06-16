@@ -5,133 +5,186 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI PDF Quiz - Upload</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f3f5fb;
+      min-height: 100vh;
+    }
+    .quiz-upload-card {
+      max-width: 480px;
+      margin: 40px auto;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px 0 rgba(95,112,179,0.09), 0 1.5px 4px 0 rgba(95,112,179,0.07);
+      border: none;
+      background: #fff;
+    }
+    .brand-logo {
+      width: 58px;
+      height: 58px;
+      margin-bottom: 10px;
+      background: #f3f5fb;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      color: #0d6efd;
+      font-weight: 700;
+    }
+    .form-label {
+      font-weight: 500;
+      color: #112244;
+    }
+    .form-check-label {
+      color: #222;
+    }
+    .btn-primary {
+      font-weight: 600;
+      font-size: 1.08rem;
+      padding: 10px 0px;
+      border-radius: 8px;
+      transition: background 0.18s;
+    }
+    .btn-primary:active, .btn-primary:focus {
+      background: #0a58ca !important;
+    }
+    @media (max-width: 600px) {
+      .quiz-upload-card { margin: 12px; }
+    }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
 </head>
-<body class="bg-light">
-  <div class="container mt-5">
-    <h2 class="mb-4 text-center">📄 Upload PDF or JSON to Generate Quiz</h2>
-    <div class="mb-3">
-      <label class="form-label">Select Input Type:</label>
-      <div class="form-check">
-        <input class="form-check-input" type="radio" name="inputType" id="pdfInputType" value="pdf" checked>
-        <label class="form-check-label" for="pdfInputType">PDF File</label>
+<body>
+  <div class="container">
+    <div class="quiz-upload-card card p-4 mt-5">
+      <div class="text-center mb-3">
+        <div class="brand-logo shadow-sm mb-2">📝</div>
+        <h3 class="mb-1 fw-bold" style="color:#0d6efd;">AI-Generated Quiz System</h3>
+        <div class="mb-2 text-muted fs-6">Upload your <strong>PDF</strong> or <strong>JSON</strong> to auto-generate a professional quiz.</div>
       </div>
-      <div class="form-check">
-        <input class="form-check-input" type="radio" name="inputType" id="jsonInputType" value="json">
-        <label class="form-check-label" for="jsonInputType">JSON File</label>
-      </div>
+      <form id="uploadForm" autocomplete="off" onsubmit="event.preventDefault(); handleInput();">
+        <div class="mb-3">
+          <label class="form-label">Choose Input Type</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="inputType" id="pdfInputType" value="pdf" checked>
+              <label class="form-check-label" for="pdfInputType">PDF File</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="inputType" id="jsonInputType" value="json">
+              <label class="form-check-label" for="jsonInputType">JSON File</label>
+            </div>
+          </div>
+        </div>
+        <div id="pdfInputGroup" class="mb-3">
+          <label for="numQuestions" class="form-label">Number of Questions</label>
+          <input type="number" id="numQuestions" class="form-control" min="1" max="20" value="5" required>
+          <label for="pdfInput" class="form-label mt-2">Select PDF File</label>
+          <input type="file" id="pdfInput" class="form-control" accept="application/pdf">
+        </div>
+        <div id="jsonInputGroup" class="mb-3 d-none">
+          <label for="jsonInput" class="form-label">Select JSON File</label>
+          <input type="file" id="jsonInput" class="form-control" accept="application/json">
+        </div>
+        <button class="btn btn-primary w-100 mt-2" type="submit" id="generateBtn">
+          <span id="btnText">Generate Quiz</span>
+          <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+      </form>
+      <div class="mt-3 text-center text-muted fs-7">Your data is processed securely and never stored.</div>
     </div>
-    <div id="pdfInputGroup" class="mb-3">
-      <label for="numQuestions" class="form-label">Number of Questions:</label>
-      <input type="number" id="numQuestions" class="form-control" min="1" max="20" value="5" required>
-      <label for="pdfInput" class="form-label mt-2">Upload PDF:</label>
-      <input type="file" id="pdfInput" class="form-control" accept="application/pdf">
-    </div>
-    <div id="jsonInputGroup" class="mb-3 d-none">
-      <label for="jsonInput" class="form-label">Upload JSON:</label>
-      <input type="file" id="jsonInput" class="form-control" accept="application/json">
-    </div>
-    <button class="btn btn-primary" onclick="handleInput()" id="generateBtn">
-      <span id="btnText">Generate Quiz</span>
-      <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-    </button>
   </div>
-
   <script>
-  const API_KEY = 'AIzaSyC2wMg_eU32g_FZQCEoHDm0wkMh7Dze63w';
+    // --- Retain your API key (move to env in production) ---
+    const API_KEY = 'AIzaSyC2wMg_eU32g_FZQCEoHDm0wkMh7Dze63w';
 
-  document.querySelectorAll('input[name="inputType"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      const pdfGroup = document.getElementById('pdfInputGroup');
-      const jsonGroup = document.getElementById('jsonInputGroup');
-      if (radio.value === 'pdf') {
-        pdfGroup.classList.remove('d-none');
-        jsonGroup.classList.add('d-none');
-      } else {
-        pdfGroup.classList.add('d-none');
-        jsonGroup.classList.remove('d-none');
-      }
-    });
-  });
-
-  async function handleInput() {
-    const inputType = document.querySelector('input[name="inputType"]:checked').value;
-    const btn = document.getElementById('generateBtn');
-    const btnText = document.getElementById('btnText');
-    const btnSpinner = document.getElementById('btnSpinner');
-
-    btn.disabled = true;
-    btnText.classList.add('d-none');
-    btnSpinner.classList.remove('d-none');
-
-    try {
-      let questions;
-      if (inputType === 'pdf') {
-        const file = document.getElementById('pdfInput').files[0];
-        const numQuestions = document.getElementById('numQuestions').value;
-        if (!file) throw new Error("Please select a PDF file.");
-        if (!numQuestions || numQuestions < 1) throw new Error("Please enter a valid number of questions.");
-
-        const text = await readPDF(file);
-        const response = await getQuestionsFromGemini(text, numQuestions);
-        questions = JSON.parse(response.match(/\[.*\]/s)[0]);
-      } else {
-        const file = document.getElementById('jsonInput').files[0];
-        if (!file) throw new Error("Please select a JSON file.");
-        questions = await parseJSONFile(file);
-      }
-
-      localStorage.setItem("quizQuestions", JSON.stringify(questions));
-      window.location.href = "quiz.html";
-    } catch (err) {
-      alert(err.message || "Failed to process input. Try again.");
-    } finally {
-      btn.disabled = false;
-      btnText.classList.remove('d-none');
-      btnSpinner.classList.add('d-none');
-    }
-  }
-
-  async function readPDF(file) {
-    const pdfText = [];
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      
-      // Group by y-coordinate to preserve line breaks
-      const lines = {};
-      textContent.items.forEach(item => {
-        const y = item.transform[5].toFixed(2);
-        lines[y] = lines[y] ? lines[y] + ' ' + item.str : item.str;
+    document.querySelectorAll('input[name="inputType"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const pdfGroup = document.getElementById('pdfInputGroup');
+        const jsonGroup = document.getElementById('jsonInputGroup');
+        if (radio.value === 'pdf') {
+          pdfGroup.classList.remove('d-none');
+          jsonGroup.classList.add('d-none');
+        } else {
+          pdfGroup.classList.add('d-none');
+          jsonGroup.classList.remove('d-none');
+        }
       });
+    });
 
-      const pageText = Object.values(lines)
-        .map(line => line.trim())
-        .filter(line => line.length > 10)  // remove short garbage lines
-        .join('\n');
+    async function handleInput() {
+      const inputType = document.querySelector('input[name="inputType"]:checked').value;
+      const btn = document.getElementById('generateBtn');
+      const btnText = document.getElementById('btnText');
+      const btnSpinner = document.getElementById('btnSpinner');
 
-      pdfText.push(pageText);
+      btn.disabled = true;
+      btnText.classList.add('d-none');
+      btnSpinner.classList.remove('d-none');
+
+      try {
+        let questions;
+        if (inputType === 'pdf') {
+          const file = document.getElementById('pdfInput').files[0];
+          const numQuestions = document.getElementById('numQuestions').value;
+          if (!file) throw new Error("Please select a PDF file.");
+          if (!numQuestions || numQuestions < 1) throw new Error("Please enter a valid number of questions.");
+
+          const text = await readPDF(file);
+          const response = await getQuestionsFromGemini(text, numQuestions);
+          questions = JSON.parse(response.match(/\[.*\]/s)[0]);
+        } else {
+          const file = document.getElementById('jsonInput').files[0];
+          if (!file) throw new Error("Please select a JSON file.");
+          questions = await parseJSONFile(file);
+        }
+
+        localStorage.setItem("quizQuestions", JSON.stringify(questions));
+        window.location.href = "quiz.html";
+      } catch (err) {
+        alert(err.message || "Failed to process input. Try again.");
+      } finally {
+        btn.disabled = false;
+        btnText.classList.remove('d-none');
+        btnSpinner.classList.add('d-none');
+      }
     }
 
-    return pdfText.join('\n\n'); // Separate pages by double break
-  }
+    async function readPDF(file) {
+      const pdfText = [];
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-  async function parseJSONFile(file) {
-    const text = await file.text();
-    const json = JSON.parse(text);
-    return json.map(q => ({
-      question: q.question,
-      options: [q.option_1, q.option_2, q.option_3, q.option_4],
-      correct_index: q.answer - 1
-    }));
-  }
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const lines = {};
+        textContent.items.forEach(item => {
+          const y = item.transform[5].toFixed(2);
+          lines[y] = lines[y] ? lines[y] + ' ' + item.str : item.str;
+        });
+        const pageText = Object.values(lines)
+          .map(line => line.trim())
+          .filter(line => line.length > 10)
+          .join('\n');
+        pdfText.push(pageText);
+      }
+      return pdfText.join('\n\n');
+    }
 
-  async function getQuestionsFromGemini(text, numQuestions) {
-    const prompt = `
+    async function parseJSONFile(file) {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      return json.map(q => ({
+        question: q.question,
+        options: [q.option_1, q.option_2, q.option_3, q.option_4],
+        correct_index: q.answer - 1
+      }));
+    }
+
+    async function getQuestionsFromGemini(text, numQuestions) {
+      const prompt = `
 तुमच्यासमोर दिलेला संपूर्ण मजकूर वाचा आणि त्यावर आधारित **MPSC स्तरावरील ${numQuestions} बहुपर्यायी प्रश्न (MCQs)** तयार करा. **प्रत्येक प्रश्नाचे स्वरूप खालीलपैकी कोणत्यातरी विशिष्ट प्रकारात असावे**, आणि प्रश्न फक्त **मराठीत** लिहावे.
 
 📘 **प्रश्न प्रकार (Question Types) — हे विविध प्रकार कव्हर करा**:
@@ -163,19 +216,17 @@
 ${text}
 `;
 
-    const body = {
-      contents: [{ parts: [{ text: prompt }] }]
-    };
+      const body = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
 
-    const res = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-      body
-    );
-    console.log(res.data.candidates[0].content.parts[0].text);
-    return res.data.candidates[0].content.parts[0].text;
-  }
-</script>
-
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93130cb53c786787',t:'MTc0NDc5OTg3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+      const res = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+        body
+      );
+      // console.log(res.data.candidates[0].content.parts[0].text);
+      return res.data.candidates[0].content.parts[0].text;
+    }
+  </script>
 </body>
 </html>
