@@ -28,6 +28,7 @@
       margin-bottom: 10px;
       font-size: 1.08em;
       line-height: 1.6;
+      white-space: pre-line;
     }
     .option-label.selected { border: 1.5px solid #0d6efd; background: #e7f1ff; }
     .option-label.correct { background: #d0ffd6; border-color: #1bc467; }
@@ -85,17 +86,14 @@ function isMatchType(text) {
   return /जोड्या\s*लावा|match\s*the\s*following|column\s*A/i.test(text);
 }
 
-// Detects if question contains sub-statements like (a), (b), (c), (d)
 function extractStatements(question) {
   // Find lines like (a) ... (b) ... (c) ... (d) ...
-  // or variants with full-width parens
   const pattern = /(\([a-d]\))\s*([^()]+)/gmi;
   let matches, arr = [];
   while ((matches = pattern.exec(question)) !== null) {
     arr.push(matches[1] + ' ' + matches[2].trim());
   }
   if (arr.length > 0) {
-    // Remove statements part from question stem
     let qstem = question.split(/(\([a-d]\))/)[0].trim();
     return {qstem, arr};
   }
@@ -105,8 +103,8 @@ function extractStatements(question) {
 let questions = [],
     current = 0,
     score = 0,
+    wrongCount = 0,
     timeTaken = [],
-    wrongAnswers = [],
     answered = false,
     timerInt = null,
     startTime = null;
@@ -115,14 +113,22 @@ window.onload = () => {
   const qs = localStorage.getItem("quizQuestions");
   if (!qs) return location.href = "index.html";
   questions = JSON.parse(qs);
+
+  // quiz start time
+  if (!localStorage.getItem("quizStart")) localStorage.setItem("quizStart", Date.now().toString());
   showQuestion();
 };
 
 function showQuestion() {
   if (current >= questions.length) {
+    // Calculate total time
+    const quizStart = Number(localStorage.getItem("quizStart") || Date.now());
+    const quizEnd = Date.now();
+    const totalTime = Math.floor((quizEnd - quizStart) / 1000);
+    localStorage.setItem("quizTotalTime", totalTime);
     localStorage.setItem("quizScore", score);
+    localStorage.setItem("wrongCount", wrongCount);
     localStorage.setItem("timeTaken", JSON.stringify(timeTaken));
-    localStorage.setItem("wrongAnswers", JSON.stringify(wrongAnswers));
     return location.href = "result.html";
   }
 
@@ -144,13 +150,13 @@ function showQuestion() {
   const q = questions[current];
   let html = "";
 
-  // Statement question rendering
+  // Statement question rendering (each statement on new line)
   const statementsData = extractStatements(q.question);
   if (statementsData) {
     html += `<div class="mb-1"><span class="fw-bold">${statementsData.qstem}</span></div>`;
     html += `<ul class="statement-list">` + statementsData.arr.map(s => `<li>${s}</li>`).join('') + `</ul>`;
   } else {
-    html += `<div class="mb-3"><span class="fw-bold">${q.question}</span></div>`;
+    html += `<div class="mb-3"><span class="fw-bold" style="white-space:pre-line">${q.question.replace(/([a-d]\))/g, '\n$1')}</span></div>`;
   }
 
   // Special rendering for "match the following"
@@ -161,26 +167,26 @@ function showQuestion() {
       html += `<tr>
         <td><label class="option-label" id="optlbl${i}">
           <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">
-          <strong>${left.trim()}</strong>
+          <strong>${left ? left.trim() : ''}</strong>
         </label></td>
         <td>${right ? right.trim() : ''}</td>
       </tr>`;
     });
     html += `</tbody></table>`;
   }
-  // Block options (विधान, सत्य/असत्य, etc.), one per line
+  // Block options (विधान, सत्य/असत्य, etc.), one per line, each option separated by line
   else if (needsBlockOptions(q.question) || statementsData) {
     html += q.options.map((opt, i) =>
-      `<label class="option-label" id="optlbl${i}">
-        <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt}
+      `<label class="option-label" id="optlbl${i}" style="white-space:pre-line;">
+        <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt.replace(/\n/g, '<br>')}
       </label>`
     ).join('');
   }
   // Standard MCQ
   else {
     html += q.options.map((opt, i) =>
-      `<label class="option-label mt-2" id="optlbl${i}">
-        <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt}
+      `<label class="option-label mt-2" id="optlbl${i}" style="white-space:pre-line;">
+        <input type="radio" name="option" value="${i}" class="form-check-input me-2" style="margin-top:0.2em;">${opt.replace(/\n/g, '<br>')}
       </label>`
     ).join('');
   }
@@ -218,13 +224,16 @@ function submitAnswer() {
     setTimeout(() => { current++; showQuestion(); }, 1100);
   } else {
     // Store for review
-    wrongAnswers.push({
+    wrongCount++;
+    if (!window.wrongAnswers) window.wrongAnswers = [];
+    window.wrongAnswers.push({
       index: current,
       question: questions[current].question,
       options: questions[current].options,
       userAns,
       correctAns
     });
+    localStorage.setItem("wrongAnswers", JSON.stringify(window.wrongAnswers));
     document.getElementById("actionBtn").innerHTML =
       `<span class="text-danger fw-bold">❌ चुकीचे! योग्य उत्तर हिरव्या रंगात आहे.</span>
        <button class="btn btn-primary next-btn ms-3" onclick="gotoNext()">पुढील प्रश्न</button>`;

@@ -98,6 +98,8 @@
           <input type="file" id="pdfInput" class="form-control" accept="application/pdf">
         </div>
         <div id="jsonInputGroup" class="mb-3 d-none">
+          <label class="form-label mb-1">Paste JSON Here (or upload):</label>
+          <textarea id="jsonTextarea" class="form-control mb-2" rows="7" placeholder='[{"question":...}]'></textarea>
           <label class="form-label mb-1">JSON File Format (Preview):</label>
           <div class="json-preview" id="jsonFormatPreview">
 [
@@ -173,12 +175,20 @@
           const response = await getQuestionsFromGemini(text, numQuestions);
           questions = JSON.parse(response.match(/\[.*\]/s)[0]);
         } else {
-          const file = document.getElementById('jsonInput').files[0];
-          if (!file) throw new Error("Please select a JSON file.");
-          questions = await parseJSONFile(file);
+          // Prefer textarea over file if textarea has value
+          const textareaVal = document.getElementById('jsonTextarea').value.trim();
+          if (textareaVal.length > 0) {
+            questions = parseQuestionsFromJsonString(textareaVal);
+          } else {
+            const file = document.getElementById('jsonInput').files[0];
+            if (!file) throw new Error("Please paste JSON or select a JSON file.");
+            questions = await parseJSONFile(file);
+          }
         }
 
         localStorage.setItem("quizQuestions", JSON.stringify(questions));
+        // Store quiz start time
+        localStorage.setItem("quizStart", Date.now().toString());
         window.location.href = "quiz.html";
       } catch (err) {
         alert(err.message || "Failed to process input. Try again.");
@@ -187,6 +197,20 @@
         btnText.classList.remove('d-none');
         btnSpinner.classList.add('d-none');
       }
+    }
+
+    function parseQuestionsFromJsonString(jsonText) {
+      let json;
+      try {
+        json = JSON.parse(jsonText);
+      } catch (e) {
+        throw new Error("Invalid JSON. Please check your input.");
+      }
+      return json.map(q => ({
+        question: q.question,
+        options: [q.option_1, q.option_2, q.option_3, q.option_4],
+        correct_index: q.answer - 1
+      }));
     }
 
     async function readPDF(file) {
@@ -235,10 +259,13 @@
 7. ✅ **संकल्पनात्मक आणि विश्लेषणात्मक प्रश्न** – केवळ तथ्य नसून आकलन आवश्यक.
 
 📌 **सूचना (Instructions)**:
+- **जास्तीत जास्त अवघड आणि गोंधळ निर्माण करणारे प्रश्न तयार करा**, म्हणजेच परीक्षार्थ्यांना संभ्रम निर्माण व्हावा असे प्रश्न बनवा.
 - प्रत्येक प्रश्नाला **4 पर्याय** असावेत, जे विश्वसनीय आणि फसवणूक करणारे असावेत.
+- **सर्व पर्याय शक्य तितके साम्य असावेत** (similar), परंतु उत्तर एकच असावे आणि ते स्पष्टपणे बरोबर ओळखता येईल असे असावे.
 - योग्य उत्तरासाठी correct_index वापरा (0 = पहिला पर्याय, 1 = दुसरा...).
 - सर्व प्रश्न मजकुराच्या **विविध भागांमधून** निवडा.
 - **सर्व आउटपुट फक्त खालील JSON स्वरूपात द्या**. कोणतेही स्पष्टीकरण, परिचय, किंवा वर्णन टाळा.
+
 
 📦 **JSON output format (strictly this only)**:
 [

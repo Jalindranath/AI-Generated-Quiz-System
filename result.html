@@ -45,6 +45,8 @@
         <h2 class="card-title mb-2">📊 तुमचा क्विझ निकाल</h2>
         <h4 id="score" class="text-primary mb-2"></h4>
         <h6 id="summary"></h6>
+        <h6 id="totalTime"></h6>
+        <h6 id="negativeSummary"></h6>
       </div>
       <div class="mb-4">
         <h5>प्रश्नानुसार वेळ:</h5>
@@ -57,14 +59,27 @@
     </div>
   </div>
   <script>
+    function formatTime(sec) {
+      const m = Math.floor(sec/60);
+      const s = sec%60;
+      return (m > 0 ? `${m} मिनिट` + (m > 1 ? 'े' : '') + " " : "") + `${s} सेकंद`;
+    }
     window.onload = () => {
-      const score = localStorage.getItem("quizScore") || 0;
+      const score = Number(localStorage.getItem("quizScore") || 0);
       const questions = JSON.parse(localStorage.getItem("quizQuestions") || "[]");
       const timeTaken = JSON.parse(localStorage.getItem("timeTaken") || "[]");
       const wrongAnswers = JSON.parse(localStorage.getItem("wrongAnswers") || "[]");
+      const totalTime = Number(localStorage.getItem("quizTotalTime") || "0");
+      const wrongCount = Number(localStorage.getItem("wrongCount") || "0");
+      const correct = score;
+      const total = questions.length;
+      const negative = wrongCount * 0.25;
+      const finalScore = Math.max(0, (correct - negative).toFixed(2));
 
-      document.getElementById("score").innerText = `तुम्ही ${questions.length} पैकी ${score}  गुण मिळवले`;
+      document.getElementById("score").innerText = `तुम्ही ${total} पैकी ${finalScore}  गुण मिळवले`;
       document.getElementById("summary").innerText = `योग्य उत्तरांची टक्केवारी: ${Math.round((score/questions.length)*100)}%`;
+      document.getElementById("totalTime").innerText = `एकूण वेळ: ${formatTime(totalTime)}`;
+      document.getElementById("negativeSummary").innerText = `योग्य उत्तर: ${correct} | चुकीचे: ${wrongCount} | निगेटिव्ह मार्किंग: -${negative}`;
 
       // Time list
       const timeList = document.getElementById("timeList");
@@ -80,7 +95,7 @@
         let html = `<h5 class="mb-3 text-danger">तुमचे चुकीचे प्रश्न व योग्य उत्तरे:</h5>`;
         wrongAnswers.forEach((wa, idx) => {
           html += `<div class="wrong-block">
-            <div class="mb-2"><strong>Q${wa.index+1}:</strong> ${wa.question}</div>
+            <div class="mb-2"><strong>Q${wa.index+1}:</strong> ${wa.question.replace(/\n/g, '<br>')}</div>
             <ul class="mb-2">` +
             wa.options.map((opt, i) => {
               if (i === wa.correctAns)
